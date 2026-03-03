@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"layouts/internal/config"
 	"layouts/internal/tmux"
@@ -23,7 +26,7 @@ var newCmd = &cobra.Command{
 	Short:       "Create a new tmux session with a layout",
 	Long: `Create a new tmux session and apply a layout to it.
 
-  layouts new                       — pick layout via fzf, use layout name as session
+  layouts new                       — pick layout via fzf, prompt for session name
   layouts new mysession dev         — create "mysession" with dev layout
   layouts new mysession             — create "mysession" with default layout
   layouts new mysession -d ~/code   — use ~/code as working directory`,
@@ -44,7 +47,16 @@ var newCmd = &cobra.Command{
 				return err
 			}
 			layoutName = picked
-			sessionName = picked
+
+			fmt.Printf("Session name [%s]: ", picked)
+			reader := bufio.NewReader(os.Stdin)
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+			if input != "" {
+				sessionName = input
+			} else {
+				sessionName = picked
+			}
 		case 1:
 			sessionName = args[0]
 			if cfg.Default != "" {
