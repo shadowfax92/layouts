@@ -17,16 +17,17 @@ func init() {
 }
 
 var newCmd = &cobra.Command{
-	Use:         "new <session-name> [layout]",
+	Use:         "new [session-name] [layout]",
 	Aliases:     []string{"n"},
 	Annotations: map[string]string{"group": "Layouts:"},
 	Short:       "Create a new tmux session with a layout",
 	Long: `Create a new tmux session and apply a layout to it.
 
-  layouts new mysession dev        — create "mysession" with dev layout
-  layouts new mysession            — create "mysession" with default layout
-  layouts new mysession -d ~/code  — use ~/code as working directory`,
-	Args: cobra.RangeArgs(1, 2),
+  layouts new                       — pick layout via fzf, use layout name as session
+  layouts new mysession dev         — create "mysession" with dev layout
+  layouts new mysession             — create "mysession" with default layout
+  layouts new mysession -d ~/code   — use ~/code as working directory`,
+	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		cfg, err = config.Load()
@@ -34,17 +35,28 @@ var newCmd = &cobra.Command{
 			return err
 		}
 
-		sessionName := args[0]
+		var sessionName, layoutName string
+
+		switch len(args) {
+		case 0:
+			picked, err := pickLayoutFzf(cfg)
+			if err != nil {
+				return err
+			}
+			layoutName = picked
+			sessionName = picked
+		case 1:
+			sessionName = args[0]
+			if cfg.Default != "" {
+				layoutName = cfg.Default
+			}
+		case 2:
+			sessionName = args[0]
+			layoutName = args[1]
+		}
 
 		if tmux.SessionExists(sessionName) {
 			return fmt.Errorf("session %q already exists", sessionName)
-		}
-
-		var layoutName string
-		if len(args) >= 2 {
-			layoutName = args[1]
-		} else if cfg.Default != "" {
-			layoutName = cfg.Default
 		}
 
 		var layout *config.LayoutConfig
