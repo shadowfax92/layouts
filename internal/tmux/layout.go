@@ -81,6 +81,15 @@ func applyToNewSession(sessionName, startDir string, windows []config.WindowConf
 	return nil
 }
 
+func paneBaseIndex() int {
+	out, err := run("show-option", "-gv", "pane-base-index")
+	if err != nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(strings.TrimSpace(out))
+	return n
+}
+
 func applyPanes(sessionName string, windowIdx int, startDir string, win config.WindowConfig) error {
 	if len(win.Panes) <= 1 {
 		if len(win.Panes) == 1 && win.Panes[0].Cmd != "" {
@@ -96,30 +105,35 @@ func applyPanes(sessionName string, windowIdx int, startDir string, win config.W
 		splitFlag = "-v"
 	}
 
+	// Create all panes via simple splits (no size — just get them to exist)
+	winTarget := fmt.Sprintf("%s:%d", sessionName, windowIdx)
 	for i := 1; i < len(win.Panes); i++ {
-		remainingSum := 0
-		for j := i; j < len(sizes); j++ {
-			remainingSum += sizes[j]
-		}
-		currentSum := sizes[i-1] + remainingSum
-		p := 50
-		if currentSum > 0 {
-			p = remainingSum * 100 / currentSum
-		}
-
-		target := fmt.Sprintf("%s:%d", sessionName, windowIdx)
-		if _, err := run("split-window", splitFlag, "-t", target, "-p", strconv.Itoa(p), "-c", startDir); err != nil {
+		if _, err := run("split-window", splitFlag, "-t", winTarget, "-c", startDir); err != nil {
 			return fmt.Errorf("splitting pane %d in window %s: %w", i, win.Name, err)
 		}
 	}
 
-	for i, pane := range win.Panes {
-		if pane.Cmd != "" {
-			sendCommand(sessionName, windowIdx, i, pane.Cmd)
+	// Resize each pane to its exact target percentage (skip last — it takes the remainder)
+	paneBase := paneBaseIndex()
+	resizeFlag := "-x"
+	if win.Split == "vertical" {
+		resizeFlag = "-y"
+	}
+	for i := 0; i < len(sizes)-1; i++ {
+		target := fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase+i)
+		if _, err := run("resize-pane", "-t", target, resizeFlag, fmt.Sprintf("%d%%", sizes[i])); err != nil {
+			return fmt.Errorf("resizing pane %d in window %s: %w", i, win.Name, err)
 		}
 	}
 
-	run("select-pane", "-t", fmt.Sprintf("%s:%d.0", sessionName, windowIdx))
+	// Send commands
+	for i, pane := range win.Panes {
+		if pane.Cmd != "" {
+			sendCommand(sessionName, windowIdx, paneBase+i, pane.Cmd)
+		}
+	}
+
+	run("select-pane", "-t", fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase))
 
 	return nil
 }
