@@ -21,9 +21,10 @@ type LayoutConfig struct {
 }
 
 type WindowConfig struct {
-	Name  string       `yaml:"name"`
-	Split string       `yaml:"split,omitempty"` // "horizontal" (side by side, default) or "vertical" (stacked)
-	Panes []PaneConfig `yaml:"panes"`
+	Name   string       `yaml:"name"`
+	Split  string       `yaml:"split,omitempty"`  // "horizontal" (side by side, default) or "vertical" (stacked)
+	Layout string       `yaml:"layout,omitempty"` // tmux layout algorithm applied after pane creation (e.g. "tiled")
+	Panes  []PaneConfig `yaml:"panes"`
 }
 
 type PaneConfig struct {
@@ -80,6 +81,10 @@ func (c *Config) Validate() error {
 			}
 			if win.Split != "" && win.Split != "horizontal" && win.Split != "vertical" {
 				return fmt.Errorf("layout %q: window %q: split must be \"horizontal\" or \"vertical\"", name, win.Name)
+			}
+			validLayouts := map[string]bool{"": true, "tiled": true, "even-horizontal": true, "even-vertical": true, "main-horizontal": true, "main-vertical": true}
+			if !validLayouts[win.Layout] {
+				return fmt.Errorf("layout %q: window %q: layout must be one of: tiled, even-horizontal, even-vertical, main-horizontal, main-vertical", name, win.Name)
 			}
 			if len(win.Panes) == 0 {
 				return fmt.Errorf("layout %q: window %q: must have at least one pane", name, win.Name)

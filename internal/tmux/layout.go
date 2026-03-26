@@ -113,16 +113,24 @@ func applyPanes(sessionName string, windowIdx int, startDir string, win config.W
 		}
 	}
 
-	// Resize each pane to its exact target percentage (skip last — it takes the remainder)
 	paneBase := paneBaseIndex()
-	resizeFlag := "-x"
-	if win.Split == "vertical" {
-		resizeFlag = "-y"
-	}
-	for i := 0; i < len(sizes)-1; i++ {
-		target := fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase+i)
-		if _, err := run("resize-pane", "-t", target, resizeFlag, fmt.Sprintf("%d%%", sizes[i])); err != nil {
-			return fmt.Errorf("resizing pane %d in window %s: %w", i, win.Name, err)
+
+	if win.Layout != "" {
+		// Apply a tmux layout algorithm (e.g. "tiled" for grids) instead of manual resize
+		if _, err := run("select-layout", "-t", winTarget, win.Layout); err != nil {
+			return fmt.Errorf("applying layout %s to window %s: %w", win.Layout, win.Name, err)
+		}
+	} else {
+		// Resize each pane to its exact target percentage (skip last — it takes the remainder)
+		resizeFlag := "-x"
+		if win.Split == "vertical" {
+			resizeFlag = "-y"
+		}
+		for i := 0; i < len(sizes)-1; i++ {
+			target := fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase+i)
+			if _, err := run("resize-pane", "-t", target, resizeFlag, fmt.Sprintf("%d%%", sizes[i])); err != nil {
+				return fmt.Errorf("resizing pane %d in window %s: %w", i, win.Name, err)
+			}
 		}
 	}
 
