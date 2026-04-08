@@ -53,7 +53,10 @@ func printLayout(layout *config.LayoutConfig) {
 		}
 		fmt.Printf("  %s %s\n", winColor.Sprintf("window %d:", i+1), winColor.Sprint(win.Name))
 		fmt.Printf("    split: %s\n", split)
-		if win.Layout != "" {
+		if win.Rows > 1 {
+			cols := len(win.Panes) / win.Rows
+			fmt.Printf("    grid: %dx%d\n", cols, win.Rows)
+		} else if win.Layout != "" {
 			fmt.Printf("    layout: %s\n", win.Layout)
 		}
 
