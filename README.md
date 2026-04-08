@@ -14,6 +14,7 @@ Define tmux layouts once in YAML, apply them to any session. Like tmuxinator's l
 - **Apply anywhere** — works on any tmux session, not tied to a specific project
 - **fzf picker** — pick a layout interactively when you don't specify one
 - **Session creation** — create new tmux sessions with layouts pre-applied
+- **Grid rearrange** — reshape a messy window into a clean `cols × rows` grid without losing pane content
 - **Zero state** — no database, no state files, just config
 
 ---
@@ -115,6 +116,9 @@ layouts show dev           # show layout tree with panes, sizes, commands
 layouts new mysession dev  # create new tmux session with layout
 layouts new mysession      # create session with default layout (if set)
 
+layouts grid 4x2           # rearrange current window's panes into 4x2 grid
+layouts grid 3x3           # 3x3 grid (creates empty panes if needed)
+
 layouts config             # open config in editor
 layouts config --path      # print config file path
 layouts init               # create config with example layouts
@@ -122,7 +126,7 @@ layouts init               # create config with example layouts
 layouts --version          # print version
 ```
 
-Most commands have short aliases: `apply`→`a`, `list`→`ls`/`l`, `show`→`s`, `new`→`n`, `config`→`c`/`cfg`.
+Most commands have short aliases: `apply`→`a`, `list`→`ls`/`l`, `show`→`s`, `new`→`n`, `grid`→`g`, `config`→`c`/`cfg`.
 
 ## Show Output
 
@@ -152,6 +156,7 @@ ly              # layouts list
 ly a dev        # layouts apply dev
 ly s dev        # layouts show dev
 ly n work dev   # layouts new work dev
+ly g 4x2        # layouts grid 4x2
 ly c            # layouts config
 ```
 
@@ -162,6 +167,21 @@ ly c            # layouts config
 `layouts new` creates a **new** tmux session with the layout pre-applied. The first window reuses the session's initial window (renamed), subsequent windows are created fresh.
 
 Pane sizes are computed proportionally. If some panes have explicit sizes and others don't, the remaining space is divided equally among unspecified panes. Sizes must sum to at most 100%.
+
+## Grid Rearrange
+
+`layouts grid <cols>x<rows>` reshapes the **current** window into a clean `cols × rows` grid. Format is `colsxrows` (width × height), so `4x2` means 4 wide, 2 tall — 8 panes total.
+
+```sh
+layouts grid 4x2   # 4 cols × 2 rows
+layouts grid 3x3   # 3×3 grid
+layouts grid 2x1   # two panes side by side
+```
+
+- **Content-preserving** — existing panes keep their running commands and scrollback. Grid uses `break-pane` + `join-pane` under the hood, not kill/split.
+- **Fills gaps** — if the window has fewer panes than the grid needs, empty panes are created to fill it out.
+- **Refuses to destroy** — if the window already has *more* panes than the grid holds, grid errors out. Close the extras yourself first.
+- **Even spacing** — rows and columns are resized to equal `100/rows%` and `100/cols%`.
 
 ## Integration with Grove
 

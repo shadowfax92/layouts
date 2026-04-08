@@ -16,6 +16,8 @@ function ly
             layouts show $rest
         case n new
             layouts new $rest
+        case g grid
+            layouts grid $rest
         case c cfg config
             layouts config $rest
         case i init
