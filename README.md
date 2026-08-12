@@ -2,7 +2,7 @@
 
 # 🪟 layouts
 
-**Tmux layout manager — predefined pane arrangements from a single config.**
+**Pane layout manager — declarative tmux layouts and content-preserving tmux/Herdr grids.**
 
 *One command. Windows, panes, splits, and commands.*
 
@@ -14,14 +14,14 @@ Define tmux layouts once in YAML, apply them to any session. Like tmuxinator's l
 - **Apply anywhere** — works on any tmux session, not tied to a specific project
 - **fzf picker** — pick a layout interactively when you don't specify one
 - **Session creation** — create new tmux sessions with layouts pre-applied
-- **Grid rearrange** — reshape a messy window into a clean `cols × rows` grid without losing pane content
+- **Grid rearrange** — reshape a messy tmux window or Herdr tab into a clean `cols × rows` grid without losing pane content
 - **Zero state** — no database, no state files, just config
 
 ---
 
 ## Install
 
-Requires Go 1.21+ and [fzf](https://github.com/junegunn/fzf).
+Requires Go 1.21+ and [fzf](https://github.com/junegunn/fzf). Declarative layouts use tmux; grid rearranging works in tmux or Herdr.
 
 ```sh
 git clone <repo-url> layouts
@@ -116,7 +116,7 @@ layouts show dev           # show layout tree with panes, sizes, commands
 layouts new mysession dev  # create new tmux session with layout
 layouts new mysession      # create session with default layout (if set)
 
-layouts grid 4x2           # rearrange current window's panes into 4x2 grid
+layouts grid 4x2           # rearrange current tmux window or Herdr tab into 4x2 grid
 layouts grid 3x3           # 3x3 grid (creates empty panes if needed)
 
 layouts config             # open config in editor
@@ -170,7 +170,7 @@ Pane sizes are computed proportionally. If some panes have explicit sizes and ot
 
 ## Grid Rearrange
 
-`layouts grid <cols>x<rows>` reshapes the **current** window into a clean `cols × rows` grid. Format is `colsxrows` (width × height), so `4x2` means 4 wide, 2 tall — 8 panes total.
+`layouts grid <cols>x<rows>` reshapes the **current** tmux window or Herdr tab into a clean `cols × rows` grid. Format is `colsxrows` (width × height), so `4x2` means 4 wide, 2 tall — 8 panes total.
 
 ```sh
 layouts grid 4x2   # 4 cols × 2 rows
@@ -178,10 +178,10 @@ layouts grid 3x3   # 3×3 grid
 layouts grid 2x1   # two panes side by side
 ```
 
-- **Content-preserving** — existing panes keep their running commands and scrollback. Grid uses `break-pane` + `join-pane` under the hood, not kill/split.
-- **Fills gaps** — if the window has fewer panes than the grid needs, empty panes are created to fill it out.
-- **Refuses to destroy** — if the window already has *more* panes than the grid holds, grid errors out. Close the extras yourself first.
-- **Even spacing** — rows and columns are resized to equal `100/rows%` and `100/cols%`.
+- **Content-preserving** — existing panes keep their running commands and scrollback. Tmux uses `break-pane` + `join-pane`; Herdr briefly stages panes in a temporary tab while rebuilding the original tab.
+- **Fills gaps** — if the window or tab has fewer panes than the grid needs, empty panes are created to fill it out.
+- **Refuses to destroy** — if the window or tab already has *more* panes than the grid holds, grid errors out. Close the extras yourself first.
+- **Even spacing** — rows and columns are distributed in terminal cells, with any indivisible remainder kept to at most one cell.
 
 ## Integration with Grove
 

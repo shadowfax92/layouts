@@ -22,6 +22,7 @@ func ArrangeGrid(cols, rows int) (int, int, error) {
 	}
 	panes := splitLines(out)
 	n := len(panes)
+	originalPanes := append([]string(nil), panes...)
 
 	if n > target {
 		return n, 0, fmt.Errorf("window has %d panes but %dx%d grid holds only %d — close panes first", n, cols, rows, target)
@@ -29,7 +30,7 @@ func ArrangeGrid(cols, rows int) (int, int, error) {
 
 	created := 0
 	for len(panes) < target {
-		out, err := run("split-window", "-d", "-h", "-t", panes[0], "-P", "-F", "#{pane_id}")
+		out, err := run("new-window", "-d", "-P", "-F", "#{pane_id}")
 		if err != nil {
 			return n, created, fmt.Errorf("creating empty pane: %w", err)
 		}
@@ -40,7 +41,7 @@ func ArrangeGrid(cols, rows int) (int, int, error) {
 	anchor := panes[0]
 	others := panes[1:]
 
-	for _, pid := range others {
+	for _, pid := range originalPanes[1:] {
 		if _, err := run("break-pane", "-d", "-s", pid); err != nil {
 			return n, created, fmt.Errorf("detaching pane %s: %w", pid, err)
 		}
@@ -73,19 +74,8 @@ func ArrangeGrid(cols, rows int) (int, int, error) {
 		}
 	}
 
-	if rows > 1 {
-		rowPct := 100 / rows
-		for r := 0; r < rows-1; r++ {
-			run("resize-pane", "-t", grid[r][0], "-y", fmt.Sprintf("%d%%", rowPct))
-		}
-	}
-	if cols > 1 {
-		colPct := 100 / cols
-		for r := 0; r < rows; r++ {
-			for c := 0; c < cols-1; c++ {
-				run("resize-pane", "-t", grid[r][c], "-x", fmt.Sprintf("%d%%", colPct))
-			}
-		}
+	if err := equalizeGrid(grid); err != nil {
+		return n, created, fmt.Errorf("sizing grid: %w", err)
 	}
 
 	run("select-pane", "-t", anchor)

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"layouts/internal/herdr"
 	"layouts/internal/tmux"
 
 	"github.com/spf13/cobra"
@@ -14,37 +15,52 @@ func init() {
 	rootCmd.AddCommand(gridCmd)
 }
 
+type gridBackend int
+
+const (
+	gridBackendNone gridBackend = iota
+	gridBackendHerdr
+	gridBackendTmux
+)
+
 var gridCmd = &cobra.Command{
 	Use:         "grid <cols>x<rows>",
 	Aliases:     []string{"g"},
 	Annotations: map[string]string{"group": "Layouts:"},
-	Short:       "Arrange current window's panes into a grid",
-	Long: `Rearrange the panes in the current tmux window into a cols × rows grid.
+	Short:       "Arrange the current tmux window or Herdr tab into a grid",
+	Long: `Rearrange the panes in the current tmux window or Herdr tab into a cols × rows grid.
 
-Existing pane content is preserved. If the window has fewer panes than the
-grid requires, empty panes are created. If it has more, grid refuses to run
-rather than killing panes.
+Existing pane content is preserved. If the window or tab has fewer panes than
+the grid requires, empty panes are created. If it has more, grid refuses to
+run rather than killing panes.
 
   layouts grid 4x2   — 4 columns, 2 rows (8 panes total)
   layouts grid 3x3   — 3x3 grid (9 panes)
   layouts grid 2x1   — two side-by-side panes`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !tmux.IsInsideTmux() {
-			return fmt.Errorf("must be inside a tmux session")
-		}
-
 		cols, rows, err := parseGridSpec(args[0])
 		if err != nil {
 			return err
 		}
 
-		before, created, err := tmux.ArrangeGrid(cols, rows)
+		var before, created int
+		var surface string
+		switch detectGridBackend() {
+		case gridBackendHerdr:
+			surface = "tab"
+			before, created, err = herdr.ArrangeGrid(cols, rows)
+		case gridBackendTmux:
+			surface = "window"
+			before, created, err = tmux.ArrangeGrid(cols, rows)
+		default:
+			return fmt.Errorf("must be inside a tmux or Herdr session")
+		}
 		if err != nil {
 			return err
 		}
 
-		msg := fmt.Sprintf("Arranged window into %dx%d grid (%d panes", cols, rows, cols*rows)
+		msg := fmt.Sprintf("Arranged %s into %dx%d grid (%d panes", surface, cols, rows, cols*rows)
 		if created > 0 {
 			msg += fmt.Sprintf(", created %d empty", created)
 		} else if before == cols*rows {
@@ -54,6 +70,18 @@ rather than killing panes.
 		fmt.Println(msg)
 		return nil
 	},
+}
+
+func detectGridBackend() gridBackend {
+	switch {
+	// Herdr panes can inherit TMUX from the process that launched Herdr.
+	case herdr.IsInsideHerdr():
+		return gridBackendHerdr
+	case tmux.IsInsideTmux():
+		return gridBackendTmux
+	default:
+		return gridBackendNone
+	}
 }
 
 func parseGridSpec(s string) (int, int, error) {

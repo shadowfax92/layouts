@@ -115,46 +115,32 @@ func applyGrid(sessionName string, windowIdx int, startDir string, win config.Wi
 
 	// Step 1: create row splits. The initial pane becomes row 0.
 	// Split (rows-1) times vertically to create the rows.
-	// Track the pane ID of the first pane in each row.
-	rowPanes := make([]string, rows)
-	rowPanes[0] = fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase)
+	// Track pane IDs by row so sizing does not depend on pane indexes.
+	grid := make([][]string, rows)
+	grid[0] = []string{fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, paneBase)}
 
 	for r := 1; r < rows; r++ {
-		out, err := run("split-window", "-v", "-t", rowPanes[0], "-c", startDir, "-P", "-F", "#{pane_id}")
+		out, err := run("split-window", "-v", "-t", grid[0][0], "-c", startDir, "-P", "-F", "#{pane_id}")
 		if err != nil {
 			return fmt.Errorf("creating row %d in window %s: %w", r, win.Name, err)
 		}
-		rowPanes[r] = strings.TrimSpace(out)
-	}
-
-	// Resize all rows to equal height
-	heightPct := 100 / rows
-	for r := 0; r < rows-1; r++ {
-		run("resize-pane", "-t", rowPanes[r], "-y", fmt.Sprintf("%d%%", heightPct))
+		grid[r] = []string{strings.TrimSpace(out)}
 	}
 
 	// Step 2: split each row into cols horizontally.
 	for r := 0; r < rows; r++ {
 		for c := 1; c < cols; c++ {
-			if _, err := run("split-window", "-h", "-t", rowPanes[r], "-c", startDir); err != nil {
+			out, err := run("split-window", "-h", "-t", grid[r][0], "-c", startDir, "-P", "-F", "#{pane_id}")
+			if err != nil {
 				return fmt.Errorf("creating col %d in row %d of window %s: %w", c, r, win.Name, err)
 			}
+			grid[r] = append(grid[r], strings.TrimSpace(out))
 		}
-		// Resize columns in this row to equal width
-		// After splitting, the row's panes are at consecutive indices.
-		// Re-query pane list for this row isn't needed — just resize by target.
 	}
 
-	// Step 3: resize columns evenly. After all splits, panes are indexed
-	// sequentially. Row 0 has paneBase..paneBase+cols-1, row 1 has
-	// paneBase+cols..paneBase+2*cols-1, etc.
-	widthPct := 100 / cols
-	for r := 0; r < rows; r++ {
-		for c := 0; c < cols-1; c++ {
-			idx := paneBase + r*cols + c
-			target := fmt.Sprintf("%s:%d.%d", sessionName, windowIdx, idx)
-			run("resize-pane", "-t", target, "-x", fmt.Sprintf("%d%%", widthPct))
-		}
+	// Step 3: resize rows and columns evenly.
+	if err := equalizeGrid(grid); err != nil {
+		return fmt.Errorf("sizing grid in window %s: %w", win.Name, err)
 	}
 
 	// Step 4: send commands

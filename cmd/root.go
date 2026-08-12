@@ -26,9 +26,9 @@ var (
 	helpHintColor   = color.New(color.Faint)
 )
 
-func helpHeader(s string) string  { return helpHeaderColor.Sprint(s) }
-func helpCmdCol(s string) string  { return helpCmdColor.Sprint(s) }
-func helpHint(s string) string    { return helpHintColor.Sprint(s) }
+func helpHeader(s string) string { return helpHeaderColor.Sprint(s) }
+func helpCmdCol(s string) string { return helpCmdColor.Sprint(s) }
+func helpHint(s string) string   { return helpHintColor.Sprint(s) }
 func helpAliases(aliases []string) string {
 	return helpAliasColor.Sprintf("(aliases: %s)", strings.Join(aliases, ", "))
 }
@@ -91,7 +91,7 @@ const usageTemplate = `{{helpHeader "Usage:"}}{{if .Runnable}}
 
 var rootCmd = &cobra.Command{
 	Use:           "layouts",
-	Short:         "Tmux layout manager — predefined pane arrangements",
+	Short:         "Pane layout manager for tmux and Herdr",
 	Version:       Version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
